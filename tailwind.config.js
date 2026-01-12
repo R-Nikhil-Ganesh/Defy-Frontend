@@ -9,14 +9,14 @@ module.exports = {
     extend: {
       colors: {
         freshchain: {
-          primary: '#1FA97A',      // 🌿 Primary Green (Brand / Headers / Buttons)
-          secondary: '#0F6E55',    // 🌱 Dark Green (Cards / Panels / Sidebar)
-          accent: '#22C55E',       // Success / Good Condition
-          light: '#F3F5F4',        // Light Grey (Borders / Backgrounds)
-          dark: '#0F6E55',         // Dark Green
-          warning: '#F59E0B',      // Warning / Alert
-          danger: '#EF4444',       // Error / Critical
-          success: '#22C55E',      // Success / Good Condition
+          primary: '#0D9488',      // Teal (Primary Brand)
+          secondary: '#F0FDFA',    // Very Light Teal (Cards Background)
+          accent: '#14B8A6',       // Bright Teal (Interactive)
+          light: '#FFFFFF',        // White (Main Background)
+          dark: '#134E4A',         // Dark Teal (Text)
+          warning: '#F59E0B',      // Amber (Warning)
+          danger: '#EF4444',       // Red (Error)
+          success: '#10B981',      // Emerald (Success)
         },
         slate: {
           50: '#f8fafc',

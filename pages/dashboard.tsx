@@ -21,7 +21,9 @@ import {
   ExternalLink,
   QrCode,
   Wallet,
-  ShoppingBag
+  ShoppingBag,
+  Download,
+  X
 } from 'lucide-react';
 import { getAuthService, UserRole } from '../lib/services/authService';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -32,6 +34,8 @@ const DashboardPage: NextPage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [batches, setBatches] = useState<BatchDetails[]>([]);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
+  const [showQRModal, setShowQRModal] = useState(false);
+  const [selectedBatchForQR, setSelectedBatchForQR] = useState<BatchDetails | null>(null);
   const router = useRouter();
   const authService = getAuthService();
   const backendService = getBackendService();
@@ -145,6 +149,111 @@ const DashboardPage: NextPage = () => {
       setRecentActivity([]);
     }
   }, [user?.role]);
+
+  const generateQRCode = (batch: BatchDetails) => {
+    setSelectedBatchForQR(batch);
+    setShowQRModal(true);
+  };
+
+  const downloadQRCode = () => {
+    if (!selectedBatchForQR) return;
+    
+    // QR code contains only the batch ID
+    const qrData = selectedBatchForQR.batchId;
+    
+    // Use QR code API to generate image
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(qrData)}`;
+    
+    // Download the QR code
+    fetch(qrCodeUrl)
+      .then(response => response.blob())
+      .then(blob => {
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.download = `QR-${selectedBatchForQR.batchId}.png`;
+        link.href = url;
+        link.click();
+        URL.revokeObjectURL(url);
+      })
+      .catch(err => console.error('QR download failed:', err));
+  };
+
+  // QR Modal Component
+  const QRModal = () => {
+    if (!showQRModal || !selectedBatchForQR) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl max-w-md w-full p-6 relative">
+          <button
+            onClick={() => setShowQRModal(false)}
+            className="absolute top-4 right-4 p-1 hover:bg-gray-100 rounded-full transition-colors"
+          >
+            <X className="h-5 w-5 text-gray-500" />
+          </button>
+          
+          <div className="text-center">
+            <div className="w-16 h-16 bg-teal-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <QrCode className="h-8 w-8 text-teal-600" />
+            </div>
+            
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">Batch QR Code</h2>
+            <p className="text-gray-600 mb-6">Scan to verify product authenticity</p>
+            
+            {/* QR Code Display */}
+            <div className="bg-white border-4 border-teal-500 rounded-lg p-6 mb-6">
+              <div className="bg-white p-4 rounded flex items-center justify-center">
+                <img 
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(selectedBatchForQR.batchId)}`}
+                  alt={`QR Code for ${selectedBatchForQR.batchId}`}
+                  className="w-64 h-64"
+                />
+              </div>
+            </div>
+            
+            {/* Batch Info */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6 text-left">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Batch ID:</span>
+                  <span className="font-semibold text-gray-900">{selectedBatchForQR.batchId}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Product:</span>
+                  <span className="font-semibold text-gray-900">{selectedBatchForQR.productType}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Stage:</span>
+                  <span className="font-semibold text-gray-900">{selectedBatchForQR.currentStage}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Location:</span>
+                  <span className="font-semibold text-gray-900">{selectedBatchForQR.currentLocation}</span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex space-x-3">
+              <button
+                onClick={downloadQRCode}
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center space-x-2"
+              >
+                <Download className="h-4 w-4" />
+                <span>Download</span>
+              </button>
+              <button
+                onClick={() => setShowQRModal(false)}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 py-3 px-4 rounded-lg font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -339,30 +448,39 @@ const DashboardPage: NextPage = () => {
                         <p className="text-xs text-gray-600">{batch.productType} • {getDisplayStage(batch.currentStage, user?.role)}</p>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <p className="text-xs text-gray-500">{batch.currentLocation}</p>
-                      {batch.locationHistory && batch.locationHistory[0] && (
-                        batch.locationHistory[0].transactionHash.startsWith('0x') && batch.locationHistory[0].transactionHash.length === 66 ? (
-                          <a
-                            href={`https://explorer-mezame.shardeum.org/tx/${batch.locationHistory[0].transactionHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 text-xs flex items-center space-x-1"
-                            title="View transaction on Shardeum Explorer"
-                          >
-                            <ExternalLink className="h-2 w-2" />
-                            <span>TX</span>
-                          </a>
-                        ) : (
-                          <span 
-                            className="text-gray-400 text-xs flex items-center space-x-1 cursor-not-allowed"
-                            title="Demo transaction - not available on explorer"
-                          >
-                            <ExternalLink className="h-2 w-2" />
-                            <span>Demo</span>
-                          </span>
-                        )
-                      )}
+                    <div className="flex items-center space-x-2">
+                      <div>
+                        <p className="text-xs text-gray-500">{batch.currentLocation}</p>
+                        {batch.locationHistory && batch.locationHistory[0] && (
+                          batch.locationHistory[0].transactionHash.startsWith('0x') && batch.locationHistory[0].transactionHash.length === 66 ? (
+                            <a
+                              href={`https://explorer-mezame.shardeum.org/tx/${batch.locationHistory[0].transactionHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 text-xs flex items-center space-x-1"
+                              title="View transaction on Shardeum Explorer"
+                            >
+                              <ExternalLink className="h-2 w-2" />
+                              <span>TX</span>
+                            </a>
+                          ) : (
+                            <span 
+                              className="text-gray-400 text-xs flex items-center space-x-1 cursor-not-allowed"
+                              title="Demo transaction - not available on explorer"
+                            >
+                              <ExternalLink className="h-2 w-2" />
+                              <span>Demo</span>
+                            </span>
+                          )
+                        )}
+                      </div>
+                      <button
+                        onClick={() => generateQRCode(batch)}
+                        className="p-1 hover:bg-teal-100 rounded transition-colors"
+                        title="Generate QR Code"
+                      >
+                        <QrCode className="h-4 w-4 text-teal-600" />
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -370,6 +488,7 @@ const DashboardPage: NextPage = () => {
             </div>
           )}
         </div>
+        <QRModal />
       </DashboardLayout>
     );
   }
@@ -526,28 +645,37 @@ const DashboardPage: NextPage = () => {
                     
                     <div className="flex items-center justify-between text-xs text-gray-500">
                       <span>{new Date(batch.created).toLocaleDateString()}</span>
-                      {batch.locationHistory && batch.locationHistory[0] && (
-                        batch.locationHistory[0].transactionHash.startsWith('0x') && batch.locationHistory[0].transactionHash.length === 66 ? (
-                          <a
-                            href={`https://explorer-mezame.shardeum.org/tx/${batch.locationHistory[0].transactionHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
-                            title="View transaction on Shardeum Explorer"
-                          >
-                            <ExternalLink className="h-2 w-2" />
-                            <span>TX</span>
-                          </a>
-                        ) : (
-                          <span 
-                            className="text-gray-400 flex items-center space-x-1 cursor-not-allowed"
-                            title="Demo transaction - not available on explorer"
-                          >
-                            <ExternalLink className="h-2 w-2" />
-                            <span>Demo</span>
-                          </span>
-                        )
-                      )}
+                      <div className="flex items-center space-x-2">
+                        {batch.locationHistory && batch.locationHistory[0] && (
+                          batch.locationHistory[0].transactionHash.startsWith('0x') && batch.locationHistory[0].transactionHash.length === 66 ? (
+                            <a
+                              href={`https://explorer-mezame.shardeum.org/tx/${batch.locationHistory[0].transactionHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:text-blue-800 flex items-center space-x-1"
+                              title="View transaction on Shardeum Explorer"
+                            >
+                              <ExternalLink className="h-2 w-2" />
+                              <span>TX</span>
+                            </a>
+                          ) : (
+                            <span 
+                              className="text-gray-400 flex items-center space-x-1 cursor-not-allowed"
+                              title="Demo transaction - not available on explorer"
+                            >
+                              <ExternalLink className="h-2 w-2" />
+                              <span>Demo</span>
+                            </span>
+                          )
+                        )}
+                        <button
+                          onClick={() => generateQRCode(batch)}
+                          className="p-1 hover:bg-teal-100 rounded transition-colors"
+                          title="Generate QR Code"
+                        >
+                          <QrCode className="h-3 w-3 text-teal-600" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ))}
@@ -568,6 +696,7 @@ const DashboardPage: NextPage = () => {
             </div>
           )}
         </div>
+        <QRModal />
       </DashboardLayout>
     );
   }
@@ -720,6 +849,17 @@ const DashboardPage: NextPage = () => {
                         </div>
                       </div>
                     )}
+                    
+                    {/* QR Code Button */}
+                    <div className="border-t border-gray-200 pt-1 mt-1">
+                      <button
+                        onClick={() => generateQRCode(batch)}
+                        className="w-full flex items-center justify-center space-x-2 px-2 py-1 text-xs text-teal-600 hover:bg-teal-50 rounded transition-colors"
+                      >
+                        <QrCode className="h-3 w-3" />
+                        <span>Generate QR Code</span>
+                      </button>
+                    </div>
                   </div>
                   )) : (
                     <div className="text-center py-4 text-gray-500 text-sm">
@@ -745,6 +885,7 @@ const DashboardPage: NextPage = () => {
             </div>
           )}
         </div>
+        <QRModal />
       </DashboardLayout>
     );
   }
@@ -823,6 +964,15 @@ const DashboardPage: NextPage = () => {
                           <p className="text-gray-900 font-medium">{batch.currentLocation}</p>
                         </div>
                       </div>
+                      <div className="mt-2 pt-2 border-t border-gray-200">
+                        <button
+                          onClick={() => generateQRCode(batch)}
+                          className="w-full flex items-center justify-center space-x-2 px-3 py-1.5 text-sm text-teal-600 hover:bg-teal-50 rounded transition-colors"
+                        >
+                          <QrCode className="h-4 w-4" />
+                          <span>Generate QR Code</span>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -843,6 +993,7 @@ const DashboardPage: NextPage = () => {
             </button>
           </div>
         </div>
+        <QRModal />
       </DashboardLayout>
     );
   }
@@ -914,6 +1065,7 @@ const DashboardPage: NextPage = () => {
           </div>
         </div>
       </div>
+      <QRModal />
     </DashboardLayout>
   );
 };

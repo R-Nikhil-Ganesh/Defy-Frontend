@@ -3,6 +3,7 @@ import { getAuthService, UserRole } from '../lib/services/authService';
 import { RoleGuard } from '../components/auth/RoleGuard';
 import BatchActions from '../components/batch/BatchActions';
 import AdminWallet from '../components/admin/AdminWallet';
+import DashboardLayout from '../components/layout/DashboardLayout';
 import { Package, Settings, Truck, Eye } from 'lucide-react';
 
 interface ProfessionalPageProps {
@@ -25,26 +26,8 @@ const ProfessionalPage: NextPage<ProfessionalPageProps> = ({ onLogout }) => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="header-bar">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-freshchain-primary rounded-lg flex items-center justify-center">
-            <Package className="h-5 w-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-lg font-semibold text-gray-900">Professional Dashboard</h1>
-            <p className="text-sm text-gray-500 hidden sm:block">
-              {user.role === UserRole.ADMIN && 'Admin Control Panel'}
-              {user.role === UserRole.RETAILER && 'Retailer Management'}
-              {user.role === UserRole.TRANSPORTER && 'Transport Operations'}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Role-specific Welcome */}
+    <DashboardLayout title="Professional Dashboard">
+      <div className="max-w-7xl mx-auto">{/* Role-specific Welcome */}
         <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-xl p-8 mb-8">
           <div className="flex items-center space-x-4">
             <div className="w-16 h-16 bg-white bg-opacity-20 rounded-xl flex items-center justify-center">
@@ -174,7 +157,7 @@ const ProfessionalPage: NextPage<ProfessionalPageProps> = ({ onLogout }) => {
           </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 };
 

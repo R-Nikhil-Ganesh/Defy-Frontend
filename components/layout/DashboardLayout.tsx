@@ -97,13 +97,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
       roles: [UserRole.ADMIN],
       description: 'AI Freshness Scanner'
     },
-    {
-      name: 'Sensors',
-      href: '/sensors',
-      icon: Thermometer,
-      roles: [UserRole.ADMIN],
-      description: 'IoT Sensor Management'
-    },
     
     // Aggregator Navigation (Creates Batches)
     {
@@ -126,13 +119,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
       icon: Sparkles,
       roles: [UserRole.AGGREGATOR, UserRole.PRODUCER],
       description: 'AI Freshness Scanner'
-    },
-    {
-      name: 'Sensors',
-      href: '/sensors',
-      icon: Thermometer,
-      roles: [UserRole.AGGREGATOR, UserRole.PRODUCER],
-      description: 'IoT Sensor Management'
     },
     {
       name: 'Marketplace',
@@ -158,13 +144,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
       description: 'AI Freshness Scanner'
     },
     {
-      name: 'Sensors',
-      href: '/sensors',
-      icon: Thermometer,
-      roles: [UserRole.RETAILER],
-      description: 'IoT Sensor Management'
-    },
-    {
       name: 'Dashboard',
       href: '/dashboard',
       icon: Package,
@@ -186,13 +165,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
       icon: Truck,
       roles: [UserRole.TRANSPORTER],
       description: 'Transport Management'
-    },
-    {
-      name: 'Sensors',
-      href: '/sensors',
-      icon: Thermometer,
-      roles: [UserRole.TRANSPORTER],
-      description: 'IoT Sensor Management'
     },
     {
       name: 'Update Location',
@@ -245,8 +217,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
                 <Package className="h-5 w-5 text-white" />
               </div>
               <div>
-                <h1 className="text-lg font-bold text-white">FreshChain</h1>
-                <p className="text-xs text-teal-200">Supply Chain Tracker</p>
+                <h1 className="text-lg font-bold text-teal-900">FreshChain</h1>
+                <p className="text-xs text-teal-700">Supply Chain Tracker</p>
               </div>
             </div>
             
@@ -258,7 +230,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
               </div>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="lg:hidden p-1 rounded-md text-teal-200 hover:text-white"
+                className="lg:hidden p-1 rounded-md text-teal-700 hover:text-teal-900"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -276,13 +248,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
                   className={`group flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-all duration-200 ${
                     isActive 
                       ? 'bg-teal-600 bg-opacity-70 text-white shadow-lg' 
-                      : 'text-teal-100 hover:text-white hover:bg-teal-700 hover:bg-opacity-50'
+                      : 'text-teal-800 hover:text-teal-900 hover:bg-teal-100 hover:bg-opacity-70'
                   }`}
                 >
-                  <item.icon className={`h-4 w-4 mr-2 ${isActive ? 'text-white' : 'text-teal-300'}`} />
+                  <item.icon className={`h-4 w-4 mr-2 ${isActive ? 'text-white' : 'text-teal-600'}`} />
                   <div className="flex-1">
                     <div className="font-medium text-sm">{item.name}</div>
-                    <div className={`text-xs ${isActive ? 'text-teal-100' : 'text-teal-400'}`}>
+                    <div className={`text-xs ${isActive ? 'text-teal-100' : 'text-teal-600'}`}>
                       {item.description}
                     </div>
                   </div>
@@ -293,12 +265,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
 
           {/* Quick Actions */}
           <div className="px-3 py-2 border-t border-teal-600 border-opacity-30">
-            <div className="text-xs font-medium text-teal-300 mb-1">Quick Actions</div>
+            <div className="text-xs font-medium text-teal-700 mb-1">Quick Actions</div>
             <div className="space-y-1">
               {(user.role === UserRole.ADMIN || isProducerRole) && (
                 <button
                   onClick={() => router.push('/professional')}
-                  className="w-full flex items-center px-2 py-1.5 text-sm text-teal-200 hover:text-white hover:bg-teal-700 hover:bg-opacity-50 rounded-lg transition-colors"
+                  className="w-full flex items-center px-2 py-1.5 text-sm text-teal-700 hover:text-teal-900 hover:bg-teal-100 hover:bg-opacity-70 rounded-lg transition-colors"
                 >
                   <Plus className="h-3 w-3 mr-2" />
                   <span className="text-xs">Create Batch</span>
@@ -307,7 +279,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
               {(isProducerRole || user.role === UserRole.RETAILER) && (
                 <button
                   onClick={() => router.push('/marketplace')}
-                  className="w-full flex items-center px-2 py-1.5 text-sm text-teal-200 hover:text-white hover:bg-teal-700 hover:bg-opacity-50 rounded-lg transition-colors"
+                  className="w-full flex items-center px-2 py-1.5 text-sm text-teal-700 hover:text-teal-900 hover:bg-teal-100 hover:bg-opacity-70 rounded-lg transition-colors"
                 >
                   <ShoppingBag className="h-3 w-3 mr-2" />
                   <span className="text-xs">Marketplace</span>
@@ -315,7 +287,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
               )}
               <button
                 onClick={() => window.location.reload()}
-                className="w-full flex items-center px-2 py-1.5 text-sm text-teal-200 hover:text-white hover:bg-teal-700 hover:bg-opacity-50 rounded-lg transition-colors"
+                className="w-full flex items-center px-2 py-1.5 text-sm text-teal-700 hover:text-teal-900 hover:bg-teal-100 hover:bg-opacity-70 rounded-lg transition-colors"
               >
                 <RefreshCw className="h-3 w-3 mr-2" />
                 <span className="text-xs">Refresh Data</span>
@@ -327,7 +299,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
           <div className="px-3 py-2 border-t border-teal-600 border-opacity-30">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center px-2 py-1.5 text-sm font-medium text-teal-200 hover:text-white hover:bg-red-600 hover:bg-opacity-50 rounded-lg transition-colors"
+              className="w-full flex items-center px-2 py-1.5 text-sm font-medium text-red-700 hover:text-red-900 hover:bg-red-100 hover:bg-opacity-70 rounded-lg transition-colors"
             >
               <LogOut className="h-3 w-3 mr-2" />
               <span className="text-xs">Logout</span>

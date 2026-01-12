@@ -203,60 +203,84 @@ const FreshnessAIPage: NextPage = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Category */}
-              <div className="text-center p-6 border-2 rounded-lg">
-                <div className="flex justify-center mb-3">
-                  {getCategoryIcon(result.freshnessCategory)}
+            {/* Check if product is NOT fresh */}
+            {(result.freshnessCategory.toLowerCase().includes('rotten') || 
+              result.freshnessCategory.toLowerCase().includes('bad') || 
+              result.freshnessScore < 0.5) ? (
+              // Product is NOT FRESH - Show UNFIT label only
+              <div className="text-center p-12">
+                <div className="flex justify-center mb-6">
+                  <XCircle className="h-24 w-24 text-red-500" />
                 </div>
-                <div className={`inline-block px-4 py-2 rounded-lg border-2 font-semibold ${getCategoryColor(result.freshnessCategory)}`}>
-                  {result.freshnessCategory}
+                <div className="inline-block px-8 py-4 rounded-xl border-4 border-red-500 bg-red-100">
+                  <h3 className="text-3xl font-bold text-red-800">BATCH UNFIT</h3>
+                  <p className="text-red-700 mt-2">Product failed freshness inspection</p>
                 </div>
-              </div>
-
-              {/* Scores */}
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-700">Freshness Score</span>
-                    <span className="font-bold text-gray-900">{(result.freshnessScore * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className="bg-green-500 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${result.freshnessScore * 100}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium text-gray-700">Confidence</span>
-                    <span className="font-bold text-gray-900">{(result.confidence * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-3">
-                    <div
-                      className="bg-blue-500 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${result.confidence * 100}%` }}
-                    />
-                  </div>
+                <div className="mt-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+                  <p className="text-red-900 font-semibold">
+                    ⚠️ This batch does not meet freshness standards and should not be distributed.
+                  </p>
                 </div>
               </div>
-            </div>
+            ) : (
+              // Product IS FRESH - Show full details
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Category */}
+                  <div className="text-center p-6 border-2 rounded-lg">
+                    <div className="flex justify-center mb-3">
+                      {getCategoryIcon(result.freshnessCategory)}
+                    </div>
+                    <div className={`inline-block px-4 py-2 rounded-lg border-2 font-semibold ${getCategoryColor(result.freshnessCategory)}`}>
+                      {result.freshnessCategory}
+                    </div>
+                  </div>
 
-            {/* Message */}
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-              <p className="text-blue-900">{result.message}</p>
-            </div>
+                  {/* Scores */}
+                  <div className="space-y-4">
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium text-gray-700">Freshness Score</span>
+                        <span className="font-bold text-gray-900">{(result.freshnessScore * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className="bg-green-500 h-3 rounded-full transition-all duration-500"
+                          style={{ width: `${result.freshnessScore * 100}%` }}
+                        />
+                      </div>
+                    </div>
 
-            {/* Technical Details */}
-            {result.dominantClass && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Dominant Class:</span> {result.dominantClass}
-                  {result.dominantScore && ` (${(result.dominantScore * 100).toFixed(1)}%)`}
-                </p>
-              </div>
+                    <div>
+                      <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium text-gray-700">Confidence</span>
+                        <span className="font-bold text-gray-900">{(result.confidence * 100).toFixed(1)}%</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div
+                          className="bg-blue-500 h-3 rounded-full transition-all duration-500"
+                          style={{ width: `${result.confidence * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Message */}
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-900">{result.message}</p>
+                </div>
+
+                {/* Technical Details */}
+                {result.dominantClass && (
+                  <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      <span className="font-medium">Dominant Class:</span> {result.dominantClass}
+                      {result.dominantScore && ` (${(result.dominantScore * 100).toFixed(1)}%)`}
+                    </p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

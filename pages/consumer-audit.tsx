@@ -1,7 +1,7 @@
 import { NextPage } from 'next';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { Camera, Package, Search, CheckCircle, Clock, MapPin, AlertTriangle, AlertCircle, Wifi, Radio, Upload, Leaf } from 'lucide-react';
+import { Camera, Package, Search, CheckCircle, Clock, MapPin, AlertTriangle, AlertCircle, Wifi, Radio, Upload, Leaf, ArrowLeft } from 'lucide-react';
 import { getBackendService, BatchDetails, SensorType, SensorInfo } from '../lib/services/backendService';
 import { getAuthService, UserRole } from '../lib/services/authService';
 import QRScanner from '../components/common/QRScanner';
@@ -272,6 +272,13 @@ const ConsumerAuditPage: NextPage = () => {
       {/* Header */}
       <div className="header-bar">
         <div className="flex items-center space-x-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Go back"
+          >
+            <ArrowLeft className="h-5 w-5 text-gray-600" />
+          </button>
           <div className="w-8 h-8 bg-freshchain-primary rounded-lg flex items-center justify-center">
             <Camera className="h-5 w-5 text-white" />
           </div>
