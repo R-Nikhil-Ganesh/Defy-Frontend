@@ -24,6 +24,8 @@ import {
   MapPin,
   Zap,
   ShoppingBag,
+  Sparkles,
+  Thermometer,
 } from 'lucide-react';
 import { getAuthService, UserRole } from '../../lib/services/authService';
 
@@ -88,6 +90,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
       roles: [UserRole.ADMIN],
       description: 'Verify Products'
     },
+    {
+      name: 'Freshness AI',
+      href: '/freshness',
+      icon: Sparkles,
+      roles: [UserRole.ADMIN],
+      description: 'AI Freshness Scanner'
+    },
+    {
+      name: 'Sensors',
+      href: '/sensors',
+      icon: Thermometer,
+      roles: [UserRole.ADMIN],
+      description: 'IoT Sensor Management'
+    },
     
     // Aggregator Navigation (Creates Batches)
     {
@@ -105,6 +121,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
       description: 'New Supply Chain Entry'
     },
     {
+      name: 'Freshness AI',
+      href: '/freshness',
+      icon: Sparkles,
+      roles: [UserRole.AGGREGATOR, UserRole.PRODUCER],
+      description: 'AI Freshness Scanner'
+    },
+    {
+      name: 'Sensors',
+      href: '/sensors',
+      icon: Thermometer,
+      roles: [UserRole.AGGREGATOR, UserRole.PRODUCER],
+      description: 'IoT Sensor Management'
+    },
+    {
       name: 'Marketplace',
       href: '/marketplace',
       icon: ShoppingBag,
@@ -120,6 +150,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
     },
     
     // Retailer Navigation
+    {
+      name: 'Freshness AI',
+      href: '/freshness',
+      icon: Sparkles,
+      roles: [UserRole.RETAILER],
+      description: 'AI Freshness Scanner'
+    },
+    {
+      name: 'Sensors',
+      href: '/sensors',
+      icon: Thermometer,
+      roles: [UserRole.RETAILER],
+      description: 'IoT Sensor Management'
+    },
     {
       name: 'Dashboard',
       href: '/dashboard',
@@ -142,6 +186,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
       icon: Truck,
       roles: [UserRole.TRANSPORTER],
       description: 'Transport Management'
+    },
+    {
+      name: 'Sensors',
+      href: '/sensors',
+      icon: Thermometer,
+      roles: [UserRole.TRANSPORTER],
+      description: 'IoT Sensor Management'
     },
     {
       name: 'Update Location',

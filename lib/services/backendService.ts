@@ -72,6 +72,43 @@ export interface QRLinkRequest {
   qrPayload?: string;
 }
 
+export interface SensorRegistration {
+  sensorId: string;
+  batchId: string;
+  sensorType: SensorType;
+}
+
+export interface SensorDataSubmission {
+  batchId: string;
+  sensorId: string;
+  temperature: number;
+  humidity: number;
+}
+
+export interface SensorReading {
+  batchId: string;
+  sensorId: string;
+  sensorType: string;
+  temperature: number;
+  humidity: number;
+  timestamp: string;
+  source: string;
+}
+
+export interface SensorReadingsResponse {
+  readings: SensorReading[];
+}
+
+export interface FreshnessResult {
+  batchId?: string;
+  freshnessScore: number;
+  freshnessCategory: string;
+  confidence: number;
+  message: string;
+  dominantClass?: string;
+  dominantScore?: number;
+}
+
 export interface ParentOfferPayload {
   productType: string;
   unit: string;
@@ -264,6 +301,69 @@ export class BackendService {
       method: 'POST',
       body: JSON.stringify(request),
     });
+  }
+
+  /**
+   * Register a new sensor
+   */
+  async registerSensor(request: SensorRegistration): Promise<ApiResponse<any>> {
+    return this.makeRequest('/sensors/register', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Submit sensor data readings
+   */
+  async submitSensorData(request: SensorDataSubmission): Promise<ApiResponse<any>> {
+    return this.makeRequest('/sensors/data', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  /**
+   * Get sensor readings for a batch
+   */
+  async getSensorReadings(batchId: string): Promise<ApiResponse<SensorReadingsResponse>> {
+    return this.makeRequest<SensorReadingsResponse>(`/sensors/batch/${batchId}`);
+  }
+
+  /**
+   * Scan image for freshness detection
+   */
+  async scanFreshness(imageFile: File, batchId?: string): Promise<ApiResponse<FreshnessResult>> {
+    const formData = new FormData();
+    formData.append('file', imageFile);
+    if (batchId) {
+      formData.append('batchId', batchId);
+    }
+
+    const authService = getAuthService();
+    const token = authService.getToken();
+    
+    const response = await fetch(`${BACKEND_URL}/ml/freshness-scan`, {
+      method: 'POST',
+      headers: {
+        'Authorization': token ? `Bearer ${token}` : '',
+      },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ detail: 'Failed to scan image' }));
+      return {
+        success: false,
+        error: errorData.detail || 'Failed to scan image',
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      data,
+    };
   }
 
   /** Marketplace helpers **/
