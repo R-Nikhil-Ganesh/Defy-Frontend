@@ -46,12 +46,64 @@ const DashboardPage: NextPage = () => {
     }
   }, [router]);
 
+  // Helper functions - MUST be defined before loadDashboardData
+  const getStageProgress = (stage: string) => {
+    switch (stage) {
+      case 'Created': return 20;
+      case 'Harvested': return 40;
+      case 'In Transit': return 60;
+      case 'At Retailer': return 80;
+      case 'Selling': return 100;
+      default: return 0;
+    }
+  };
+
+  const getStageColor = (stage: string) => {
+    switch (stage) {
+      case 'Created': return 'text-gray-600';
+      case 'Harvested': return 'text-green-600';
+      case 'In Transit': return 'text-blue-600';
+      case 'At Retailer': return 'text-purple-600';
+      case 'Selling': return 'text-emerald-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const getStageIcon = (stage: string) => {
+    switch (stage) {
+      case 'Created': return Package;
+      case 'Harvested': return CheckCircle;
+      case 'In Transit': return Truck;
+      case 'At Retailer': return MapPin;
+      case 'Selling': return Eye;
+      default: return Package;
+    }
+  };
+
+  const getStageBackground = (stage: string) => {
+    switch (stage) {
+      case 'Created': return 'bg-gray-50 border-l-4 border-gray-400';
+      case 'Harvested': return 'bg-green-50 border-l-4 border-green-400';
+      case 'In Transit': return 'bg-blue-50 border-l-4 border-blue-400';
+      case 'At Retailer': return 'bg-purple-50 border-l-4 border-purple-400';
+      case 'Selling': return 'bg-emerald-50 border-l-4 border-emerald-400';
+      default: return 'bg-gray-50 border-l-4 border-gray-400';
+    }
+  };
+
   const loadDashboardData = async () => {
+    console.log('[Dashboard] Loading data for user:', user?.username, 'role:', user?.role);
     try {
-      const response = await backendService.getAllBatches();
+      // Use different endpoint based on user role
+      const response = user?.role === UserRole.ADMIN 
+        ? await backendService.getAllBatches()
+        : await backendService.getBatchesByStage();
+      
+      console.log('[Dashboard] API response:', response);
       
       if (response.success && response.data) {
         const batchData = Array.isArray(response.data) ? response.data : [];
+        console.log('[Dashboard] Setting batches:', batchData.length, 'batches');
         setBatches(batchData);
         
         // Enhanced recent activity with better stage information and visual indicators
@@ -109,50 +161,6 @@ const DashboardPage: NextPage = () => {
       case UserRole.TRANSPORTER: return 'Transporter Dashboard';
       case UserRole.CONSUMER: return 'Consumer Overview';
       default: return 'Dashboard';
-    }
-  };
-
-  const getStageProgress = (stage: string) => {
-    switch (stage) {
-      case 'Created': return 20;
-      case 'Harvested': return 40;
-      case 'In Transit': return 60;
-      case 'At Retailer': return 80;
-      case 'Selling': return 100;
-      default: return 0;
-    }
-  };
-
-  const getStageColor = (stage: string) => {
-    switch (stage) {
-      case 'Created': return 'text-gray-600';
-      case 'Harvested': return 'text-green-600';
-      case 'In Transit': return 'text-blue-600';
-      case 'At Retailer': return 'text-purple-600';
-      case 'Selling': return 'text-emerald-600';
-      default: return 'text-gray-600';
-    }
-  };
-
-  const getStageIcon = (stage: string) => {
-    switch (stage) {
-      case 'Created': return Package;
-      case 'Harvested': return CheckCircle;
-      case 'In Transit': return Truck;
-      case 'At Retailer': return MapPin;
-      case 'Selling': return Eye;
-      default: return Package;
-    }
-  };
-
-  const getStageBackground = (stage: string) => {
-    switch (stage) {
-      case 'Created': return 'bg-gray-50 border-l-4 border-gray-400';
-      case 'Harvested': return 'bg-green-50 border-l-4 border-green-400';
-      case 'In Transit': return 'bg-blue-50 border-l-4 border-blue-400';
-      case 'At Retailer': return 'bg-purple-50 border-l-4 border-purple-400';
-      case 'Selling': return 'bg-emerald-50 border-l-4 border-emerald-400';
-      default: return 'bg-gray-50 border-l-4 border-gray-400';
     }
   };
 
@@ -634,12 +642,23 @@ const DashboardPage: NextPage = () => {
           {Array.isArray(batches) && batches.length > 0 ? (
             <div className="glass-card p-3">
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-teal-900">Batch Workflow</h3>
-                <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Read-only</span>
+                <h3 className="text-sm font-semibold text-teal-900">Your At Retailer Batches ({(() => {
+                  const filtered = batches.filter(b => 
+                    b.currentStage === 'At Retailer' && 
+                    (b.updatedBy === user?.username || b.updatedBy === user?.email)
+                  );
+                  return filtered.length;
+                })()})</h3>
+                <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">Scanned by you</span>
               </div>
               
               <div className="space-y-1.5">
-                {batches.map((batch) => (
+                {(() => {
+                  const filtered = batches.filter(b => 
+                    b.currentStage === 'At Retailer' && 
+                    (b.updatedBy === user?.username || b.updatedBy === user?.email)
+                  );
+                  return filtered.length > 0 ? filtered.map((batch) => (
                   <div key={batch.batchId} className="border border-gray-200 rounded p-2 bg-gray-50 bg-opacity-50">
                     {/* Ultra Compact Batch Header */}
                     <div className="flex items-center justify-between mb-1">
@@ -693,7 +712,13 @@ const DashboardPage: NextPage = () => {
                       </div>
                     )}
                   </div>
-                ))}
+                  )) : (
+                    <div className="text-center py-4 text-gray-500 text-sm">
+                      <p>No batches at retailer stage scanned by you.</p>
+                      <p className="text-xs mt-1">Scan a QR code to add batches to your dashboard.</p>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ) : (
@@ -751,11 +776,50 @@ const DashboardPage: NextPage = () => {
               onClick={() => router.push('/professional')}
               className="btn-primary flex items-center space-x-2 w-full justify-center"
             >
-              <span>Manage Current Batches</span>
-              <AlertTriangle className="h-4 w-4" />
-              <span>Report Batch</span>
+              <span>Manage Batches</span>
             </button>
           </div>
+
+          {/* Batch List */}
+          {(() => {
+            const userBatches = Array.isArray(batches) 
+              ? batches.filter(b => 
+                  b.currentStage === 'In Transit' && 
+                  (b.updatedBy === user?.username || b.updatedBy === user?.email)
+                )
+              : [];
+            
+            return userBatches.length > 0 && (
+              <div className="metric-card">
+                <h3 className="text-lg font-semibold text-teal-900 mb-4">Your In Transit Batches ({userBatches.length})</h3>
+                <div className="space-y-3">
+                  {userBatches.map((batch) => (
+                    <div key={batch.batchId} className="p-3 border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center space-x-2">
+                          <div className={`w-3 h-3 rounded-full ${batch.isActive ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                          <h4 className="font-bold text-teal-900">{batch.batchId}</h4>
+                        </div>
+                        <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
+                          {batch.currentStage}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-gray-500">Product</p>
+                          <p className="text-gray-900 font-medium">{batch.productType}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-500">Location</p>
+                          <p className="text-gray-900 font-medium">{batch.currentLocation}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Professional Tools Link */}
           <div className="metric-card text-center py-8">

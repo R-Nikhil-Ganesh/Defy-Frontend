@@ -1,7 +1,7 @@
 import { NextPage } from 'next';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
-import { Camera, Package, Search, CheckCircle, Clock, MapPin, AlertTriangle, Wifi, Radio } from 'lucide-react';
+import { Camera, Package, Search, CheckCircle, Clock, MapPin, AlertTriangle, AlertCircle, Wifi, Radio, Upload, Leaf } from 'lucide-react';
 import { getBackendService, BatchDetails, SensorType, SensorInfo } from '../lib/services/backendService';
 import { getAuthService, UserRole } from '../lib/services/authService';
 import QRScanner from '../components/common/QRScanner';
@@ -23,6 +23,11 @@ const ConsumerAuditPage: NextPage = () => {
   const [sensorLinkSuccess, setSensorLinkSuccess] = useState<boolean | null>(null);
   const [isLinkingSensor, setIsLinkingSensor] = useState(false);
   const [lastQrPayload, setLastQrPayload] = useState('');
+  
+  // Mandatory sample testing
+  const [sampleImage, setSampleImage] = useState<File | null>(null);
+  const [sampleImagePreview, setSampleImagePreview] = useState<string>('');
+  const [showSampleTestingModal, setShowSampleTestingModal] = useState(false);
 
   const backendService = getBackendService();
   const authService = getAuthService();
@@ -62,6 +67,36 @@ const ConsumerAuditPage: NextPage = () => {
     }
   };
 
+  const handleSampleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError('Please upload a valid image file');
+        return;
+      }
+      setSampleImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSampleImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Remove data:image/xxx;base64, prefix
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
   const handleSensorSelection = async (sensorId: string) => {
     if (!batchId.trim()) {
       setSensorLinkStatus('Please scan or enter a batch ID first');
@@ -85,23 +120,37 @@ const ConsumerAuditPage: NextPage = () => {
       return;
     }
 
+    // Check for mandatory sample testing
+    if (!sampleImage) {
+      setShowSampleTestingModal(true);
+      setSensorLinkStatus('Sample testing is mandatory. Please upload a product image.');
+      setSensorLinkSuccess(false);
+      return;
+    }
+
     setIsLinkingSensor(true);
-    setSensorLinkStatus('Linking sensor to batch...');
+    setSensorLinkStatus('Processing sample test and linking sensor...');
     setSensorLinkSuccess(null);
 
     try {
+      // Convert image to base64
+      const sampleImageBase64 = await convertImageToBase64(sampleImage);
+      
       const response = await backendService.linkSensorToBatch({
         batchId: targetBatchId,
         sensorId: sensorId.trim(),
         locationType,
         qrPayload,
+        sampleImageBase64,
       });
 
       if (response.success) {
-        setSensorLinkStatus(`Batch ${targetBatchId} added to your dashboard! Sensor ${sensorId.trim()} linked successfully.`);
+        setSensorLinkStatus(`Batch ${targetBatchId} added to your dashboard! Sensor ${sensorId.trim()} linked successfully. Sample test completed.`);
         setSensorLinkSuccess(true);
-        // Clear sensor selection UI
+        // Clear sensor selection UI and sample image
         setAvailableSensors([]);
+        setSampleImage(null);
+        setSampleImagePreview('');
       } else {
         setSensorLinkStatus(response.error || 'Unable to link sensor.');
         setSensorLinkSuccess(false);
@@ -294,6 +343,52 @@ const ConsumerAuditPage: NextPage = () => {
             <p className="text-sm text-gray-600 mb-4">
               Provide your assigned sensor ID and FreshChain will automatically bind scanned batches to your device. Manual linking remains available below.
             </p>
+            
+            {/* Mandatory Sample Testing */}
+            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+              <div className="flex items-center space-x-2 mb-3">
+                <Leaf className="h-5 w-5 text-amber-600" />
+                <h3 className="font-semibold text-amber-900">Mandatory Sample Testing</h3>
+              </div>
+              <p className="text-sm text-amber-800 mb-3">
+                Upload a clear image of the product for AI freshness analysis before linking the sensor.
+              </p>
+              <div className="flex flex-col md:flex-row gap-4 items-start">
+                <div className="flex-1">
+                  <label className="block">
+                    <div className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-amber-500 transition-colors ${
+                      sampleImage ? 'border-amber-500 bg-amber-50' : 'border-gray-300 bg-gray-50'
+                    }`}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleSampleImageUpload}
+                        className="hidden"
+                      />
+                      <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                      <p className="text-sm text-gray-600">
+                        {sampleImage ? `Selected: ${sampleImage.name}` : 'Click to upload product image'}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+                {sampleImagePreview && (
+                  <div className="w-32 h-32">
+                    <img
+                      src={sampleImagePreview}
+                      alt="Sample preview"
+                      className="w-full h-full object-cover rounded-lg border-2 border-amber-500"
+                    />
+                  </div>
+                )}
+              </div>
+              {!sampleImage && (
+                <p className="text-xs text-amber-700 mt-2">
+                  ⚠️ Sample testing is required before sensor linking
+                </p>
+              )}
+            </div>
+            
             <div className="flex flex-col md:flex-row gap-4">
               <input
                 type="text"
@@ -419,7 +514,7 @@ const ConsumerAuditPage: NextPage = () => {
                     </div>
                     {sensorLinkSuccess === true && (
                       <button
-                        onClick={() => router.push('/professional')}
+                        onClick={() => router.push('/dashboard')}
                         className="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
                       >
                         <Package className="h-4 w-4" />
@@ -477,6 +572,57 @@ const ConsumerAuditPage: NextPage = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Shelf Life & Freshness Stats */}
+              {(batchData.ageInDays !== undefined || batchData.freshnessScore !== undefined) && (
+                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <h4 className="font-semibold text-blue-900 mb-3 flex items-center">
+                    <Clock className="h-5 w-5 mr-2" />
+                    Time & Freshness Statistics
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {(batchData.ageInDays !== undefined || batchData.ageInHours !== undefined) && (
+                      <div>
+                        <label className="block text-xs font-medium text-blue-700 mb-1">Product Age</label>
+                        <div className="text-2xl font-bold text-blue-900">
+                          {batchData.ageInDays !== undefined && batchData.ageInDays < 1 && batchData.ageInHours !== undefined
+                            ? `${batchData.ageInHours.toFixed(1)} hours`
+                            : batchData.ageInDays !== undefined
+                            ? `${batchData.ageInDays.toFixed(1)} days`
+                            : 'N/A'}
+                        </div>
+                      </div>
+                    )}
+                    {batchData.freshnessScore !== undefined && (
+                      <div>
+                        <label className="block text-xs font-medium text-blue-700 mb-1">Freshness Score</label>
+                        <div className="text-2xl font-bold text-blue-900">
+                          {(batchData.freshnessScore * 100).toFixed(0)}%
+                        </div>
+                        {batchData.freshnessCategory && (
+                          <span className={`inline-block mt-1 px-2 py-1 text-xs font-medium rounded ${
+                            batchData.freshnessCategory.toLowerCase().includes('fresh')
+                              ? 'bg-green-100 text-green-800'
+                              : batchData.freshnessCategory.toLowerCase().includes('rotten')
+                              ? 'bg-red-100 text-red-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {batchData.freshnessCategory}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {batchData.estimatedShelfLifeDays !== undefined && batchData.estimatedShelfLifeDays !== null && (
+                      <div>
+                        <label className="block text-xs font-medium text-blue-700 mb-1">Estimated Shelf Life</label>
+                        <div className="text-2xl font-bold text-blue-900">
+                          {batchData.estimatedShelfLifeDays.toFixed(1)} days
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {batchData.isFinalStage && (
                 <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg">

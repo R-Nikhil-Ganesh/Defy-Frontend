@@ -63,6 +63,12 @@ export interface BatchDetails {
   alerts: Alert[];
   isActive: boolean;
   isFinalStage: boolean;
+  // Time and freshness data for consumers
+  ageInDays?: number;
+  ageInHours?: number;
+  estimatedShelfLifeDays?: number;
+  freshnessScore?: number;
+  freshnessCategory?: string;
 }
 
 export interface QRLinkRequest {
@@ -70,6 +76,9 @@ export interface QRLinkRequest {
   sensorId: string;
   locationType: SensorType;
   qrPayload?: string;
+  sampleImageBase64?: string;  // Mandatory sample testing image
+  freshnessScore?: number;
+  freshnessCategory?: string;
 }
 
 export interface SensorRegistration {
@@ -309,12 +318,29 @@ export class BackendService {
    * Transporters see In Transit batches, Retailers see At Retailer batches
    */
   async getBatchesByStage(stage?: string): Promise<ApiResponse<BatchDetails[]>> {
-    const url = stage ? `/batches/by-stage?stage=${encodeURIComponent(stage)}` : '/batches/by-stage';
-    const result = await this.makeRequest<{ success: boolean; data: BatchDetails[] }>(url);
-    if (result.success && result.data) {
-      return { success: true, data: (result.data as any).data || result.data };
+    try {
+      const url = stage ? `/batches/by-stage?stage=${encodeURIComponent(stage)}` : '/batches/by-stage';
+      const token = getAuthService().getToken();
+      const response = await fetch(`${BACKEND_URL}${url}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Failed to fetch batches: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      // Backend returns { success: true, data: [...] }
+      return { success: true, data: result.data || [] };
+    } catch (error) {
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to fetch batches',
+      };
     }
-    return result as ApiResponse<BatchDetails[]>;
   }
 
   /**
