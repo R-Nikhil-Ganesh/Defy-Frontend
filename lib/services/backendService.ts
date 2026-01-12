@@ -16,6 +16,11 @@ export enum BatchStage {
   SELLING = 'Selling'
 }
 
+export enum SensorType {
+  TRANSPORTER = 'transporter',
+  RETAILER = 'retailer'
+}
+
 export interface BatchCreationRequest {
   batchId: string;
   productType: string;
@@ -58,6 +63,86 @@ export interface BatchDetails {
   alerts: Alert[];
   isActive: boolean;
   isFinalStage: boolean;
+}
+
+export interface QRLinkRequest {
+  batchId: string;
+  sensorId: string;
+  locationType: SensorType;
+  qrPayload?: string;
+}
+
+export interface ParentOfferPayload {
+  productType: string;
+  unit: string;
+  basePrice: number;
+  totalQuantity: number;
+  currency?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface ParentOffer extends ParentOfferPayload {
+  parentId: string;
+  parentBatchNumber: string;
+  producer: string;
+  availableQuantity: number;
+  pricingCurrency: string;
+  createdAt: string;
+  status: 'draft' | 'published';
+  publishedAt?: string;
+  metadata?: Record<string, any>;
+}
+
+export interface MarketplacePaymentInfo {
+  orderId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  createdAt: string;
+  paymentId?: string;
+  paidAt?: string;
+}
+
+export interface MarketplaceRequest {
+  requestId: string;
+  parentId: string;
+  parentBatchNumber?: string;
+  parentProductType?: string;
+  retailer: string;
+  producer?: string;
+  quantity: number;
+  bidPrice: number;
+  status: string;
+  createdAt: string;
+  approvedAt?: string;
+  currency: string;
+  advancePercent: number;
+  payment?: MarketplacePaymentInfo | null;
+  childBatchId?: string;
+  fulfilledAt?: string;
+}
+
+export interface RetailerBidPayload {
+  parentId: string;
+  quantity: number;
+  bidPrice: number;
+}
+
+export interface PaymentOrderResult {
+  orderId: string;
+  amount: number;
+  currency: string;
+  order: Record<string, any>;
+}
+
+export interface PaymentConfirmationPayload {
+  paymentId: string;
+  orderId: string;
+}
+
+export interface FulfillBidPayload {
+  childBatchId: string;
+  productType?: string;
 }
 
 export interface ApiResponse<T> {
@@ -169,6 +254,85 @@ export class BackendService {
    */
   async getAllBatches(): Promise<ApiResponse<BatchDetails[]>> {
     return this.makeRequest<BatchDetails[]>('/admin/batches');
+  }
+
+  /**
+   * Link a retailer/transporter sensor to a batch by scanning QR payload
+   */
+  async linkSensorToBatch(request: QRLinkRequest): Promise<ApiResponse<any>> {
+    return this.makeRequest('/qr/scan', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    });
+  }
+
+  /** Marketplace helpers **/
+  async listParentOffers(status?: string): Promise<ApiResponse<ParentOffer[]>> {
+    const query = status ? `?status=${encodeURIComponent(status)}` : '';
+    return this.makeRequest<ParentOffer[]>(`/marketplace/parent${query}`);
+  }
+
+  async createParentOffer(payload: ParentOfferPayload): Promise<ApiResponse<ParentOffer>> {
+    return this.makeRequest<ParentOffer>('/marketplace/parent', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async publishParentOffer(parentId: string): Promise<ApiResponse<ParentOffer>> {
+    return this.makeRequest<ParentOffer>(`/marketplace/parent/${parentId}/publish`, {
+      method: 'POST',
+    });
+  }
+
+  async listMarketplaceRequests(parentId?: string): Promise<ApiResponse<MarketplaceRequest[]>> {
+    const query = parentId ? `?parentId=${encodeURIComponent(parentId)}` : '';
+    return this.makeRequest<MarketplaceRequest[]>(`/marketplace/requests${query}`);
+  }
+
+  async createMarketplaceRequest(payload: RetailerBidPayload): Promise<ApiResponse<MarketplaceRequest>> {
+    return this.makeRequest<MarketplaceRequest>('/marketplace/requests', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async approveMarketplaceRequest(requestId: string): Promise<ApiResponse<MarketplaceRequest>> {
+    return this.makeRequest<MarketplaceRequest>(`/marketplace/requests/${requestId}/approve`, {
+      method: 'POST',
+    });
+  }
+
+  async rejectMarketplaceRequest(requestId: string): Promise<ApiResponse<MarketplaceRequest>> {
+    return this.makeRequest<MarketplaceRequest>(`/marketplace/requests/${requestId}/reject`, {
+      method: 'POST',
+    });
+  }
+
+  async createMarketplacePaymentOrder(requestId: string): Promise<ApiResponse<PaymentOrderResult>> {
+    return this.makeRequest<PaymentOrderResult>(`/marketplace/requests/${requestId}/order`, {
+      method: 'POST',
+    });
+  }
+
+  async confirmMarketplacePayment(
+    requestId: string,
+    payload: PaymentConfirmationPayload,
+  ): Promise<ApiResponse<MarketplaceRequest>> {
+    return this.makeRequest<MarketplaceRequest>(`/marketplace/requests/${requestId}/confirm`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async fulfillMarketplaceRequest(
+    requestId: string,
+    payload: FulfillBidPayload,
+  ): Promise<ApiResponse<void>> {
+    return this.makeRequest(`/marketplace/requests/${requestId}/fulfill`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
   }
 
   // Admin MetaMask operations (simplified - no signature modals)

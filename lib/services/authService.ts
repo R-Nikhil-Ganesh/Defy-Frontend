@@ -2,6 +2,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:800
 
 export enum UserRole {
   ADMIN = 'admin',
+  PRODUCER = 'producer',
   AGGREGATOR = 'aggregator',
   RETAILER = 'retailer',
   TRANSPORTER = 'transporter',
@@ -106,7 +107,11 @@ export class AuthService {
   }
 
   canCreateBatch(): boolean {
-    return this.hasRole(UserRole.ADMIN) || this.hasRole(UserRole.AGGREGATOR);
+    return (
+      this.hasRole(UserRole.ADMIN) ||
+      this.hasRole(UserRole.AGGREGATOR) ||
+      this.hasRole(UserRole.PRODUCER)
+    );
   }
 
   canUpdateStage(): boolean {

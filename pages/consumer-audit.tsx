@@ -1,7 +1,8 @@
 import { NextPage } from 'next';
 import { useState } from 'react';
 import { Camera, Package, Search, CheckCircle, Clock, MapPin, AlertTriangle } from 'lucide-react';
-import { getBackendService, BatchDetails } from '../lib/services/backendService';
+import { getBackendService, BatchDetails, SensorType } from '../lib/services/backendService';
+import { getAuthService, UserRole } from '../lib/services/authService';
 import QRScanner from '../components/common/QRScanner';
 
 const ConsumerAuditPage: NextPage = () => {
@@ -10,9 +11,85 @@ const ConsumerAuditPage: NextPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [showScanner, setShowScanner] = useState(false);
+  const [sensorId, setSensorId] = useState('');
+  const [sensorLinkStatus, setSensorLinkStatus] = useState('');
+  const [sensorLinkSuccess, setSensorLinkSuccess] = useState<boolean | null>(null);
+  const [isLinkingSensor, setIsLinkingSensor] = useState(false);
+  const [lastQrPayload, setLastQrPayload] = useState('');
 
   const backendService = getBackendService();
+  const authService = getAuthService();
+  const user = authService.getUser();
+  const canLinkSensors = !!user && (user.role === UserRole.RETAILER || user.role === UserRole.TRANSPORTER);
+  const locationType: SensorType = user?.role === UserRole.TRANSPORTER ? SensorType.TRANSPORTER : SensorType.RETAILER;
+  const resolveBatchIdFromPayload = (payload: string) => {
+    try {
+      const parsed = JSON.parse(payload);
+      return typeof parsed.batchId === 'string' ? parsed.batchId : payload;
+    } catch {
+      return payload;
+    }
+  };
 
+  const derivePayloadForBatch = (id: string) => {
+    if (lastQrPayload) {
+      const existing = resolveBatchIdFromPayload(lastQrPayload);
+      if (existing === id) {
+        return lastQrPayload;
+      }
+    }
+    return JSON.stringify({ batchId: id });
+  };
+
+  const linkSensorToBatch = async (targetBatchId: string, qrPayload: string) => {
+    if (!canLinkSensors) {
+      return;
+    }
+    if (!sensorId.trim()) {
+      setSensorLinkStatus('Provide your sensor ID to link scans with live sensors.');
+      setSensorLinkSuccess(false);
+      return;
+    }
+
+    setIsLinkingSensor(true);
+    setSensorLinkStatus('Linking sensor to batch...');
+    setSensorLinkSuccess(null);
+
+    try {
+      const response = await backendService.linkSensorToBatch({
+        batchId: targetBatchId,
+        sensorId: sensorId.trim(),
+        locationType,
+        qrPayload,
+      });
+
+      if (response.success) {
+        setSensorLinkStatus(`Sensor ${sensorId.trim()} linked to ${targetBatchId}.`);
+        setSensorLinkSuccess(true);
+      } else {
+        setSensorLinkStatus(response.error || 'Unable to link sensor.');
+        setSensorLinkSuccess(false);
+      }
+    } catch (err) {
+      setSensorLinkStatus(err instanceof Error ? err.message : 'Unable to link sensor.');
+      setSensorLinkSuccess(false);
+    } finally {
+      setIsLinkingSensor(false);
+    }
+  };
+
+  const handleManualSensorLink = () => {
+    if (!canLinkSensors) {
+      return;
+    }
+    if (!batchId.trim()) {
+      setSensorLinkStatus('Lookup a batch or scan a QR before linking sensors.');
+      setSensorLinkSuccess(false);
+      return;
+    }
+    const payload = derivePayloadForBatch(batchId.trim());
+    void linkSensorToBatch(batchId.trim(), payload);
+  };
   const handleSearch = async () => {
     if (!batchId.trim()) {
       setError('Please enter a batch ID');
@@ -39,7 +116,9 @@ const ConsumerAuditPage: NextPage = () => {
 
   const handleQRScan = async (qrData: string) => {
     setShowScanner(false);
-    setBatchId(qrData);
+    const resolvedBatchId = resolveBatchIdFromPayload(qrData);
+    setBatchId(resolvedBatchId);
+    setLastQrPayload(qrData);
     
     // Auto-search after QR scan
     setIsLoading(true);
@@ -47,9 +126,12 @@ const ConsumerAuditPage: NextPage = () => {
     setBatchData(null);
 
     try {
-      const result = await backendService.getBatchDetails(qrData);
+      const result = await backendService.getBatchDetails(resolvedBatchId);
       if (result.success && result.data) {
         setBatchData(result.data);
+        if (canLinkSensors) {
+          void linkSensorToBatch(resolvedBatchId, qrData);
+        }
       } else {
         setError(result.error || 'Batch not found');
       }
@@ -169,6 +251,43 @@ const ConsumerAuditPage: NextPage = () => {
             </button>
           </div>
         </div>
+
+        {canLinkSensors && (
+          <div className="card mb-8">
+            <h2 className="text-xl font-bold text-gray-900 mb-4">Sensor Linking (Retail & Transport)</h2>
+            <p className="text-sm text-gray-600 mb-4">
+              Provide your assigned sensor ID and FreshChain will automatically bind scanned batches to your device. Manual linking remains available below.
+            </p>
+            <div className="flex flex-col md:flex-row gap-4">
+              <input
+                type="text"
+                value={sensorId}
+                onChange={(e) => {
+                  setSensorId(e.target.value);
+                  setSensorLinkStatus('');
+                  setSensorLinkSuccess(null);
+                }}
+                placeholder="Sensor hardware ID (e.g., RETAILER-001)"
+                className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              />
+              <button
+                onClick={handleManualSensorLink}
+                disabled={isLinkingSensor}
+                className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50"
+              >
+                {isLinkingSensor ? 'Linking...' : 'Link Current Batch'}
+              </button>
+            </div>
+            {sensorLinkStatus && (
+              <p className={`mt-3 text-sm ${sensorLinkSuccess ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {sensorLinkStatus}
+              </p>
+            )}
+            <p className="text-xs text-gray-500 mt-2">
+              Tip: scan the QR at your store or truck after entering the sensor ID and FreshChain will connect automatically.
+            </p>
+          </div>
+        )}
 
         {/* Error Display */}
         {error && (

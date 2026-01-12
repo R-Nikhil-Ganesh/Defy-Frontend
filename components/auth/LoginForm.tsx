@@ -92,6 +92,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
 
   const demoUsers = [
     { username: 'admin', role: 'Admin', description: 'Full access + MetaMask' },
+    { username: 'producer', role: 'Producer', description: 'Set prices, manage supply' },
     { username: 'retailer', role: 'Retailer', description: 'Create batches, update stages' },
     { username: 'transporter', role: 'Transporter', description: 'Update transport stages' },
     { username: 'consumer', role: 'Consumer', description: 'QR scan only' },

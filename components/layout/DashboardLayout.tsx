@@ -22,7 +22,8 @@ import {
   Plus,
   RefreshCw,
   MapPin,
-  Zap
+  Zap,
+  ShoppingBag,
 } from 'lucide-react';
 import { getAuthService, UserRole } from '../../lib/services/authService';
 
@@ -36,6 +37,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
   const router = useRouter();
   const authService = getAuthService();
   const user = authService.getUser();
+  const isProducerRole = user?.role === UserRole.AGGREGATOR || user?.role === UserRole.PRODUCER;
 
   const handleLogout = () => {
     authService.logout();
@@ -49,6 +51,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
   const getRoleColor = (role: string) => {
     switch (role) {
       case UserRole.ADMIN: return 'bg-red-100 text-red-800';
+      case UserRole.PRODUCER: return 'bg-orange-100 text-orange-800';
       case UserRole.AGGREGATOR: return 'bg-orange-100 text-orange-800';
       case UserRole.RETAILER: return 'bg-blue-100 text-blue-800';
       case UserRole.TRANSPORTER: return 'bg-green-100 text-green-800';
@@ -60,6 +63,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
   const getRoleIcon = (role: string) => {
     switch (role) {
       case UserRole.ADMIN: return <Settings className="h-4 w-4" />;
+      case UserRole.PRODUCER: return <Package className="h-4 w-4" />;
       case UserRole.AGGREGATOR: return <Package className="h-4 w-4" />;
       case UserRole.RETAILER: return <Package className="h-4 w-4" />;
       case UserRole.TRANSPORTER: return <Truck className="h-4 w-4" />;
@@ -90,21 +94,28 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
       name: 'Dashboard',
       href: '/dashboard',
       icon: BarChart3,
-      roles: [UserRole.AGGREGATOR],
+      roles: [UserRole.AGGREGATOR, UserRole.PRODUCER],
       description: 'Batch Creation Hub'
     },
     {
       name: 'Create Batch',
       href: '/professional',
       icon: Plus,
-      roles: [UserRole.AGGREGATOR],
+      roles: [UserRole.AGGREGATOR, UserRole.PRODUCER],
       description: 'New Supply Chain Entry'
+    },
+    {
+      name: 'Marketplace',
+      href: '/marketplace',
+      icon: ShoppingBag,
+      roles: [UserRole.AGGREGATOR, UserRole.PRODUCER, UserRole.RETAILER],
+      description: 'Pricing & Bids'
     },
     {
       name: 'QR Scanner',
       href: '/consumer-audit',
       icon: QrCode,
-      roles: [UserRole.AGGREGATOR],
+      roles: [UserRole.AGGREGATOR, UserRole.PRODUCER],
       description: 'Verify Products'
     },
     
@@ -233,13 +244,22 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
           <div className="px-3 py-2 border-t border-teal-600 border-opacity-30">
             <div className="text-xs font-medium text-teal-300 mb-1">Quick Actions</div>
             <div className="space-y-1">
-              {(user.role === UserRole.ADMIN || user.role === UserRole.AGGREGATOR) && (
+              {(user.role === UserRole.ADMIN || isProducerRole) && (
                 <button
                   onClick={() => router.push('/professional')}
                   className="w-full flex items-center px-2 py-1.5 text-sm text-teal-200 hover:text-white hover:bg-teal-700 hover:bg-opacity-50 rounded-lg transition-colors"
                 >
                   <Plus className="h-3 w-3 mr-2" />
                   <span className="text-xs">Create Batch</span>
+                </button>
+              )}
+              {(isProducerRole || user.role === UserRole.RETAILER) && (
+                <button
+                  onClick={() => router.push('/marketplace')}
+                  className="w-full flex items-center px-2 py-1.5 text-sm text-teal-200 hover:text-white hover:bg-teal-700 hover:bg-opacity-50 rounded-lg transition-colors"
+                >
+                  <ShoppingBag className="h-3 w-3 mr-2" />
+                  <span className="text-xs">Marketplace</span>
                 </button>
               )}
               <button

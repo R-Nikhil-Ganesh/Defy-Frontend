@@ -20,7 +20,8 @@ import {
   RefreshCw,
   ExternalLink,
   QrCode,
-  Wallet
+  Wallet,
+  ShoppingBag
 } from 'lucide-react';
 import { getAuthService, UserRole } from '../lib/services/authService';
 import DashboardLayout from '../components/layout/DashboardLayout';
@@ -102,6 +103,7 @@ const DashboardPage: NextPage = () => {
   const getDashboardTitle = () => {
     switch (user.role) {
       case UserRole.ADMIN: return 'Admin Dashboard';
+      case UserRole.PRODUCER: return 'Producer Dashboard';
       case UserRole.AGGREGATOR: return 'Aggregator Dashboard';
       case UserRole.RETAILER: return 'Retailer Dashboard';
       case UserRole.TRANSPORTER: return 'Transporter Dashboard';
@@ -355,17 +357,18 @@ const DashboardPage: NextPage = () => {
     );
   }
 
-  // Aggregator Dashboard (Creates Batches)
-  if (user.role === UserRole.AGGREGATOR) {
+  // Aggregator/Producer Dashboard (Creates Batches)
+  if (user.role === UserRole.AGGREGATOR || user.role === UserRole.PRODUCER) {
+    const roleTitle = user.role === UserRole.PRODUCER ? 'Producer Dashboard' : 'Aggregator Dashboard';
     return (
-      <DashboardLayout title="Aggregator Dashboard">
+      <DashboardLayout title={roleTitle}>
         <div className="space-y-3 pb-8">
           {/* Compact Header */}
           <div className="glass-card-dark text-white rounded-lg p-3">
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="text-lg font-bold">{getDashboardTitle()}</h1>
-                <p className="text-teal-200 text-xs">Create and manage supply chain batches</p>
+                <p className="text-teal-200 text-xs">Record harvests in DB • Manage blockchain batches</p>
               </div>
               <div className="flex space-x-1">
                 <button 
@@ -381,6 +384,13 @@ const DashboardPage: NextPage = () => {
                 >
                   <RefreshCw className="h-3 w-3" />
                   <span>Refresh</span>
+                </button>
+                <button
+                  onClick={() => router.push('/marketplace')}
+                  className="bg-white bg-opacity-10 hover:bg-opacity-30 text-white px-2 py-1 rounded text-xs flex items-center space-x-1"
+                >
+                  <ShoppingBag className="h-3 w-3" />
+                  <span>Marketplace</span>
                 </button>
               </div>
             </div>
@@ -435,14 +445,26 @@ const DashboardPage: NextPage = () => {
           </div>
 
           {/* Compact Action Cards */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
+            <div className="glass-card p-3 text-center">
+              <ShoppingBag className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
+              <h3 className="text-sm font-semibold text-teal-900 mb-1">Record Harvest</h3>
+              <p className="text-gray-600 text-xs mb-2">Log parent batch to DB</p>
+              <button 
+                onClick={() => router.push('/marketplace')}
+                className="btn-primary w-full text-xs py-1.5"
+              >
+                Record
+              </button>
+            </div>
+
             <div className="glass-card p-3 text-center">
               <Plus className="h-8 w-8 text-teal-600 mx-auto mb-2" />
               <h3 className="text-sm font-semibold text-teal-900 mb-1">Create Batch</h3>
-              <p className="text-gray-600 text-xs mb-2">Start new supply chain entry</p>
+              <p className="text-gray-600 text-xs mb-2">Direct blockchain entry</p>
               <button 
                 onClick={() => router.push('/professional')}
-                className="btn-primary w-full text-xs py-1.5"
+                className="btn-secondary w-full text-xs py-1.5"
               >
                 Create
               </button>
@@ -559,6 +581,13 @@ const DashboardPage: NextPage = () => {
                 >
                   <Eye className="h-3 w-3" />
                   <span>Scan</span>
+                </button>
+                <button
+                  onClick={() => router.push('/marketplace')}
+                  className="bg-white bg-opacity-10 hover:bg-opacity-30 text-white px-2 py-1 rounded text-xs flex items-center space-x-1"
+                >
+                  <ShoppingBag className="h-3 w-3" />
+                  <span>Marketplace</span>
                 </button>
               </div>
             </div>

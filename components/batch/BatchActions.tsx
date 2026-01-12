@@ -164,7 +164,11 @@ const BatchActions: React.FC = () => {
     }
   };
 
-  const canCreateBatch = user?.role === UserRole.ADMIN; // Only admin can create batches
+  const canCreateBatch = (
+    user?.role === UserRole.ADMIN ||
+    user?.role === UserRole.AGGREGATOR ||
+    user?.role === UserRole.PRODUCER
+  );
   const canUpdateStage = user?.role === UserRole.ADMIN || user?.role === UserRole.RETAILER || user?.role === UserRole.TRANSPORTER;
 
   return (
