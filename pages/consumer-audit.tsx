@@ -33,6 +33,7 @@ const ConsumerAuditPage: NextPage = () => {
   const authService = getAuthService();
   const user = authService.getUser();
   const canLinkSensors = !!user && (user.role === UserRole.RETAILER || user.role === UserRole.TRANSPORTER);
+  const isRetailer = user?.role === UserRole.RETAILER;
   const locationType: SensorType = user?.role === UserRole.TRANSPORTER ? SensorType.TRANSPORTER : SensorType.RETAILER;
   const resolveBatchIdFromPayload = (payload: string) => {
     try {
@@ -120,21 +121,21 @@ const ConsumerAuditPage: NextPage = () => {
       return;
     }
 
-    // Check for mandatory sample testing
-    if (!sampleImage) {
+    // Check for mandatory sample testing (only for retailers)
+    if (isRetailer && !sampleImage) {
       setShowSampleTestingModal(true);
-      setSensorLinkStatus('Sample testing is mandatory. Please upload a product image.');
+      setSensorLinkStatus('Sample testing is mandatory for retailers. Please upload a product image.');
       setSensorLinkSuccess(false);
       return;
     }
 
     setIsLinkingSensor(true);
-    setSensorLinkStatus('Processing sample test and linking sensor...');
+    setSensorLinkStatus(isRetailer ? 'Processing sample test and linking sensor...' : 'Linking sensor...');
     setSensorLinkSuccess(null);
 
     try {
-      // Convert image to base64
-      const sampleImageBase64 = await convertImageToBase64(sampleImage);
+      // Convert image to base64 (only if sample image provided)
+      const sampleImageBase64 = sampleImage ? await convertImageToBase64(sampleImage) : undefined;
       
       const response = await backendService.linkSensorToBatch({
         batchId: targetBatchId,
@@ -145,7 +146,10 @@ const ConsumerAuditPage: NextPage = () => {
       });
 
       if (response.success) {
-        setSensorLinkStatus(`Batch ${targetBatchId} added to your dashboard! Sensor ${sensorId.trim()} linked successfully. Sample test completed.`);
+        const message = isRetailer 
+          ? `Batch ${targetBatchId} added to your dashboard! Sensor ${sensorId.trim()} linked successfully. Sample test completed.`
+          : `Batch ${targetBatchId} added to your dashboard! Sensor ${sensorId.trim()} linked successfully.`;
+        setSensorLinkStatus(message);
         setSensorLinkSuccess(true);
         // Clear sensor selection UI and sample image
         setAvailableSensors([]);
@@ -344,50 +348,52 @@ const ConsumerAuditPage: NextPage = () => {
               Provide your assigned sensor ID and FreshChain will automatically bind scanned batches to your device. Manual linking remains available below.
             </p>
             
-            {/* Mandatory Sample Testing */}
-            <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-center space-x-2 mb-3">
-                <Leaf className="h-5 w-5 text-amber-600" />
-                <h3 className="font-semibold text-amber-900">Mandatory Sample Testing</h3>
-              </div>
-              <p className="text-sm text-amber-800 mb-3">
-                Upload a clear image of the product for AI freshness analysis before linking the sensor.
-              </p>
-              <div className="flex flex-col md:flex-row gap-4 items-start">
-                <div className="flex-1">
-                  <label className="block">
-                    <div className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-amber-500 transition-colors ${
-                      sampleImage ? 'border-amber-500 bg-amber-50' : 'border-gray-300 bg-gray-50'
-                    }`}>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleSampleImageUpload}
-                        className="hidden"
-                      />
-                      <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
-                      <p className="text-sm text-gray-600">
-                        {sampleImage ? `Selected: ${sampleImage.name}` : 'Click to upload product image'}
-                      </p>
-                    </div>
-                  </label>
+            {/* Mandatory Sample Testing - Only for Retailers */}
+            {isRetailer && (
+              <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-center space-x-2 mb-3">
+                  <Leaf className="h-5 w-5 text-amber-600" />
+                  <h3 className="font-semibold text-amber-900">Mandatory Sample Testing</h3>
                 </div>
-                {sampleImagePreview && (
-                  <div className="w-32 h-32">
-                    <img
-                      src={sampleImagePreview}
-                      alt="Sample preview"
-                      className="w-full h-full object-cover rounded-lg border-2 border-amber-500"
-                    />
+                <p className="text-sm text-amber-800 mb-3">
+                  Upload a clear image of the product for AI freshness analysis before linking the sensor.
+                </p>
+                <div className="flex flex-col md:flex-row gap-4 items-start">
+                  <div className="flex-1">
+                    <label className="block">
+                      <div className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-amber-500 transition-colors ${
+                        sampleImage ? 'border-amber-500 bg-amber-50' : 'border-gray-300 bg-gray-50'
+                      }`}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleSampleImageUpload}
+                          className="hidden"
+                        />
+                        <Upload className="h-8 w-8 mx-auto mb-2 text-gray-400" />
+                        <p className="text-sm text-gray-600">
+                          {sampleImage ? `Selected: ${sampleImage.name}` : 'Click to upload product image'}
+                        </p>
+                      </div>
+                    </label>
                   </div>
+                  {sampleImagePreview && (
+                    <div className="w-32 h-32">
+                      <img
+                        src={sampleImagePreview}
+                        alt="Sample preview"
+                        className="w-full h-full object-cover rounded-lg border-2 border-amber-500"
+                      />
+                    </div>
+                  )}
+                </div>
+                {!sampleImage && (
+                  <p className="text-xs text-amber-700 mt-2">
+                    ⚠️ Sample testing is required before sensor linking
+                  </p>
                 )}
               </div>
-              {!sampleImage && (
-                <p className="text-xs text-amber-700 mt-2">
-                  ⚠️ Sample testing is required before sensor linking
-                </p>
-              )}
-            </div>
+            )}
             
             <div className="flex flex-col md:flex-row gap-4">
               <input

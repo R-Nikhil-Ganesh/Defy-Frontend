@@ -24,6 +24,9 @@ export enum SensorType {
 export interface BatchCreationRequest {
   batchId: string;
   productType: string;
+  sampleImageBase64?: string;
+  freshnessScore?: number;
+  freshnessCategory?: string;
 }
 
 export interface BatchUpdateRequest {
@@ -216,40 +219,58 @@ export class BackendService {
       const authService = getAuthService();
       const headers = authService.getAuthHeaders();
 
-      const response = await fetch(`${BACKEND_URL}${endpoint}`, {
-        headers: {
-          ...headers,
-          ...options.headers,
-        },
-        ...options,
-      });
+      // Add timeout for faster failure
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      const data = await response.json();
+      try {
+        const response = await fetch(`${BACKEND_URL}${endpoint}`, {
+          headers: {
+            ...headers,
+            ...options.headers,
+          },
+          signal: controller.signal,
+          ...options,
+        });
 
-      if (!response.ok) {
-        return {
-          success: false,
-          error: data.detail || `HTTP ${response.status}: ${response.statusText}`,
+        clearTimeout(timeoutId);
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          return {
+            success: false,
+            error: data.detail || `HTTP ${response.status}: ${response.statusText}`,
+          };
+        }
+
+        // Handle different response structures
+        if (data.success !== undefined) {
+          // Backend returns {success: true, data: [...]}
+          return {
+            success: data.success,
+            data: data.data,
+            message: data.message,
+            transactionHash: data.transactionHash,
+          };
+        } else {
+          // Backend returns data directly
+          return {
+            success: true,
+            data: data,
+            message: data.message,
+          transactionHash: data.transactionHash,
         };
       }
-
-      // Handle different response structures
-      if (data.success !== undefined) {
-        // Backend returns {success: true, data: [...]}
-        return {
-          success: data.success,
-          data: data.data,
-          message: data.message,
-          transactionHash: data.transactionHash,
-        };
-      } else {
-        // Backend returns data directly
-        return {
-          success: true,
-          data: data,
-          message: data.message,
-          transactionHash: data.transactionHash,
-        };
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        if (fetchError instanceof Error && fetchError.name === 'AbortError') {
+          return {
+            success: false,
+            error: 'Request timeout - please try again',
+          };
+        }
+        throw fetchError;
       }
     } catch (error) {
       return {

@@ -1,5 +1,5 @@
 import { NextPage } from 'next';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter } from 'next/router';
 import { 
   Package, 
@@ -38,13 +38,19 @@ const DashboardPage: NextPage = () => {
   const user = authService.getUser();
 
   useEffect(() => {
+    let mounted = true;
+    
     if (!authService.isAuthenticated()) {
       router.push('/login');
     } else {
       setIsLoading(false);
-      loadDashboardData();
+      if (mounted) {
+        loadDashboardData();
+      }
     }
-  }, [router]);
+    
+    return () => { mounted = false; };
+  }, []);  // Empty dependency array - only run once on mount
 
   // Helper functions - MUST be defined before loadDashboardData
   const getStageProgress = (stage: string) => {
@@ -56,6 +62,14 @@ const DashboardPage: NextPage = () => {
       case 'Selling': return 100;
       default: return 0;
     }
+  };
+
+  const getDisplayStage = (stage: string, userRole: string | undefined) => {
+    // For transporters, show "Reached Retailer" instead of "At Retailer"
+    if (userRole === 'transporter' && stage === 'At Retailer') {
+      return 'Reached Retailer';
+    }
+    return stage;
   };
 
   const getStageColor = (stage: string) => {
@@ -91,24 +105,20 @@ const DashboardPage: NextPage = () => {
     }
   };
 
-  const loadDashboardData = async () => {
-    console.log('[Dashboard] Loading data for user:', user?.username, 'role:', user?.role);
+  const loadDashboardData = useCallback(async () => {
     try {
       // Use different endpoint based on user role
       const response = user?.role === UserRole.ADMIN 
         ? await backendService.getAllBatches()
         : await backendService.getBatchesByStage();
       
-      console.log('[Dashboard] API response:', response);
-      
       if (response.success && response.data) {
         const batchData = Array.isArray(response.data) ? response.data : [];
-        console.log('[Dashboard] Setting batches:', batchData.length, 'batches');
         setBatches(batchData);
         
-        // Enhanced recent activity with better stage information and visual indicators
-        const activity = batchData.flatMap(batch => 
-          (batch.locationHistory || []).slice(0, 2).map(history => ({
+        // Optimize: Only process recent activity for first 10 batches
+        const activity = batchData.slice(0, 10).flatMap(batch => 
+          (batch.locationHistory || []).slice(0, 1).map(history => ({
             id: `${batch.batchId}-${history.timestamp}`,
             batchId: batch.batchId,
             productType: batch.productType,
@@ -119,23 +129,22 @@ const DashboardPage: NextPage = () => {
             stageIcon: getStageIcon(history.stage),
             stageColor: getStageColor(history.stage),
             stageBackground: getStageBackground(history.stage),
-            isLatest: batch.locationHistory && batch.locationHistory[0] === history,
+            isLatest: true,
             stageProgress: getStageProgress(history.stage)
           }))
-        ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 6);
+        ).sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 5);
         
         setRecentActivity(activity);
       } else {
-        console.error('Failed to load batches:', response.error);
         setBatches([]);
         setRecentActivity([]);
       }
     } catch (error) {
-      console.error('Failed to load dashboard data:', error);
+      console.error('Dashboard load error:', error);
       setBatches([]);
       setRecentActivity([]);
     }
-  };
+  }, [user?.role]);
 
   if (isLoading) {
     return (
@@ -327,7 +336,7 @@ const DashboardPage: NextPage = () => {
                       <div className={`w-2 h-2 rounded-full ${batch.isActive ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                       <div>
                         <h4 className="font-semibold text-teal-900 text-xs">{batch.batchId}</h4>
-                        <p className="text-xs text-gray-600">{batch.productType} • {batch.currentStage}</p>
+                        <p className="text-xs text-gray-600">{batch.productType} • {getDisplayStage(batch.currentStage, user?.role)}</p>
                       </div>
                     </div>
                     <div className="text-right">
@@ -668,7 +677,7 @@ const DashboardPage: NextPage = () => {
                       </div>
                       <div className="text-right">
                         <span className={`text-xs font-medium px-1.5 py-0.5 rounded ${getStageColor(batch.currentStage)} bg-white bg-opacity-70`}>
-                          {batch.currentStage}
+                          {getDisplayStage(batch.currentStage, user?.role)}
                         </span>
                         <p className="text-xs text-gray-500 mt-0.5">{batch.currentLocation}</p>
                       </div>
@@ -801,7 +810,7 @@ const DashboardPage: NextPage = () => {
                           <h4 className="font-bold text-teal-900">{batch.batchId}</h4>
                         </div>
                         <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                          {batch.currentStage}
+                          {getDisplayStage(batch.currentStage, user?.role)}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">

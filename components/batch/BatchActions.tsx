@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Plus, RefreshCw, AlertTriangle, MapPin, Clock, CheckCircle, Wallet, ExternalLink } from 'lucide-react';
+import { Package, Plus, RefreshCw, AlertTriangle, MapPin, Clock, CheckCircle, Wallet, ExternalLink, Upload, X } from 'lucide-react';
 import { getAuthService, UserRole } from '../../lib/services/authService';
 import { getBackendService, BatchDetails, BatchStage } from '../../lib/services/backendService';
 import { getMetaMaskService } from '../../lib/services/metamaskService';
@@ -14,6 +14,10 @@ const BatchActions: React.FC = () => {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [newBatchId, setNewBatchId] = useState('');
   const [newProductType, setNewProductType] = useState('');
+  
+  // Sample testing
+  const [sampleImage, setSampleImage] = useState<File | null>(null);
+  const [sampleImagePreview, setSampleImagePreview] = useState<string>('');
   
   // Update stage form
   const [selectedBatch, setSelectedBatch] = useState<string>('');
@@ -59,22 +63,33 @@ const BatchActions: React.FC = () => {
       return;
     }
 
+    if (!sampleImage) {
+      setError('Sample image is required for freshness testing');
+      return;
+    }
+
     setIsProcessingTx(true);
     setError('');
     setSuccess('');
 
     try {
+      // Convert image to base64
+      const sampleImageBase64 = await convertImageToBase64(sampleImage);
+      
       if (user?.role === UserRole.ADMIN) {
         // Admin creates batch via MetaMask (backend handles the transaction)
         const response = await backendService.adminCreateBatchWithMetaMask({
           batchId: newBatchId,
-          productType: newProductType
+          productType: newProductType,
+          sampleImageBase64
         });
 
         if (response.success) {
-          setSuccess(`Batch created successfully! TX: ${response.transactionHash}`);
+          setSuccess(`Batch created with sample test! TX: ${response.transactionHash}`);
           setNewBatchId('');
           setNewProductType('');
+          setSampleImage(null);
+          setSampleImagePreview('');
           setShowCreateForm(false);
           await loadBatches();
         } else {
@@ -84,13 +99,16 @@ const BatchActions: React.FC = () => {
         // Non-admin users use regular backend API
         const response = await backendService.createBatch({
           batchId: newBatchId,
-          productType: newProductType
+          productType: newProductType,
+          sampleImageBase64
         });
 
         if (response.success) {
-          setSuccess(`Batch created successfully! TX: ${response.transactionHash}`);
+          setSuccess(`Batch created with sample test! TX: ${response.transactionHash}`);
           setNewBatchId('');
           setNewProductType('');
+          setSampleImage(null);
+          setSampleImagePreview('');
           setShowCreateForm(false);
           await loadBatches();
         } else {
@@ -101,6 +119,35 @@ const BatchActions: React.FC = () => {
       setError(error.message);
     } finally {
       setIsProcessingTx(false);
+    }
+  };
+
+  const convertImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        const base64 = result.split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleSampleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        setError('Please upload a valid image file');
+        return;
+      }
+      setSampleImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setSampleImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
@@ -326,17 +373,64 @@ const BatchActions: React.FC = () => {
               />
             </div>
           </div>
+          
+          {/* Sample Testing */}
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Sample Image (Required) <span className="text-red-500">*</span>
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-lg p-4">
+              {!sampleImagePreview ? (
+                <div className="text-center">
+                  <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <label className="cursor-pointer">
+                    <span className="text-sm text-blue-600 hover:text-blue-700">Upload sample image</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSampleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1">Required for freshness testing at production</p>
+                </div>
+              ) : (
+                <div className="relative">
+                  <img
+                    src={sampleImagePreview}
+                    alt="Sample preview"
+                    className="max-h-40 mx-auto rounded"
+                  />
+                  <button
+                    onClick={() => {
+                      setSampleImage(null);
+                      setSampleImagePreview('');
+                    }}
+                    className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full hover:bg-red-600"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                  <p className="text-xs text-green-600 text-center mt-2">✓ Sample image uploaded</p>
+                </div>
+              )}
+            </div>
+          </div>
+          
           <div className="flex space-x-3 mt-4">
             <button
               onClick={createBatch}
-              disabled={isProcessingTx}
+              disabled={isProcessingTx || !sampleImage}
               className="flex items-center space-x-2 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg transition-colors disabled:opacity-50"
             >
               {user?.role === UserRole.ADMIN && <Wallet className="h-4 w-4" />}
               <span>{isProcessingTx ? 'Processing...' : 'Create Batch'}</span>
             </button>
             <button
-              onClick={() => setShowCreateForm(false)}
+              onClick={() => {
+                setShowCreateForm(false);
+                setSampleImage(null);
+                setSampleImagePreview('');
+              }}
               className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors"
             >
               Cancel
