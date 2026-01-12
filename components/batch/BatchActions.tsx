@@ -36,7 +36,11 @@ const BatchActions: React.FC = () => {
   const loadBatches = async () => {
     setIsLoading(true);
     try {
-      const response = await backendService.getAllBatches();
+      // Use different endpoint based on user role
+      const response = user?.role === UserRole.ADMIN 
+        ? await backendService.getAllBatches()
+        : await backendService.getBatchesByStage();
+      
       if (response.success && response.data) {
         setBatches(response.data);
       } else {

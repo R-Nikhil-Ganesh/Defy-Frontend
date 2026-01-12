@@ -1,16 +1,23 @@
 import { NextPage } from 'next';
-import { useState } from 'react';
-import { Camera, Package, Search, CheckCircle, Clock, MapPin, AlertTriangle } from 'lucide-react';
-import { getBackendService, BatchDetails, SensorType } from '../lib/services/backendService';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { Camera, Package, Search, CheckCircle, Clock, MapPin, AlertTriangle, Wifi, Radio } from 'lucide-react';
+import { getBackendService, BatchDetails, SensorType, SensorInfo } from '../lib/services/backendService';
 import { getAuthService, UserRole } from '../lib/services/authService';
 import QRScanner from '../components/common/QRScanner';
 
 const ConsumerAuditPage: NextPage = () => {
+  const router = useRouter();
   const [batchId, setBatchId] = useState<string>('');
   const [batchData, setBatchData] = useState<BatchDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
   const [showScanner, setShowScanner] = useState(false);
+  
+  // Sensor selection
+  const [availableSensors, setAvailableSensors] = useState<SensorInfo[]>([]);
+  const [selectedSensorId, setSelectedSensorId] = useState<string>('');
+  const [showSensorSelection, setShowSensorSelection] = useState(false);
   const [sensorId, setSensorId] = useState('');
   const [sensorLinkStatus, setSensorLinkStatus] = useState('');
   const [sensorLinkSuccess, setSensorLinkSuccess] = useState<boolean | null>(null);
@@ -41,7 +48,34 @@ const ConsumerAuditPage: NextPage = () => {
     return JSON.stringify({ batchId: id });
   };
 
-  const linkSensorToBatch = async (targetBatchId: string, qrPayload: string) => {
+  const loadAvailableSensors = async () => {
+    if (!canLinkSensors) return;
+    
+    try {
+      const response = await backendService.getAvailableSensors(locationType);
+      if (response.success && response.data) {
+        const unlinkedSensors = response.data.sensors.filter(s => !s.isLinked);
+        setAvailableSensors(unlinkedSensors);
+      }
+    } catch (err) {
+      console.error('Failed to load sensors:', err);
+    }
+  };
+
+  const handleSensorSelection = async (sensorId: string) => {
+    if (!batchId.trim()) {
+      setSensorLinkStatus('Please scan or enter a batch ID first');
+      setSensorLinkSuccess(false);
+      return;
+    }
+
+    setSelectedSensorId(sensorId);
+    const payload = derivePayloadForBatch(batchId.trim());
+    await linkSensorToBatch(batchId.trim(), payload, sensorId);
+    setShowSensorSelection(false);
+  };
+
+  const linkSensorToBatch = async (targetBatchId: string, qrPayload: string, sensorIdOverride?: string) => {
     if (!canLinkSensors) {
       return;
     }
@@ -64,8 +98,10 @@ const ConsumerAuditPage: NextPage = () => {
       });
 
       if (response.success) {
-        setSensorLinkStatus(`Sensor ${sensorId.trim()} linked to ${targetBatchId}.`);
+        setSensorLinkStatus(`Batch ${targetBatchId} added to your dashboard! Sensor ${sensorId.trim()} linked successfully.`);
         setSensorLinkSuccess(true);
+        // Clear sensor selection UI
+        setAvailableSensors([]);
       } else {
         setSensorLinkStatus(response.error || 'Unable to link sensor.');
         setSensorLinkSuccess(false);
@@ -303,6 +339,107 @@ const ConsumerAuditPage: NextPage = () => {
         {/* Batch Details */}
         {batchData && (
           <div className="space-y-6">
+            {/* Sensor Linking Section - Only for Retailers/Transporters */}
+            {canLinkSensors && (
+              <div className="card">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                  <Wifi className="h-5 w-5 mr-2 text-blue-600" />
+                  Link IoT Sensor
+                </h3>
+
+                {/* Sensor Selection UI */}
+                {showSensorSelection && availableSensors.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-3">Select an available sensor to monitor this batch:</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {availableSensors.map((sensor) => (
+                        <button
+                          key={sensor.sensorId}
+                          onClick={() => handleSensorSelection(sensor.sensorId)}
+                          disabled={isLinkingSensor}
+                          className="p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-all text-left disabled:opacity-50"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center">
+                              <Radio className="h-5 w-5 text-blue-600 mr-2" />
+                              <div>
+                                <p className="font-semibold text-gray-900">{sensor.sensorId}</p>
+                                {sensor.label && (
+                                  <p className="text-xs text-gray-500">{sensor.label}</p>
+                                )}
+                                {sensor.vehicleOrStoreId && (
+                                  <p className="text-xs text-gray-500">{sensor.vehicleOrStoreId}</p>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded">
+                              Available
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {showSensorSelection && availableSensors.length === 0 && (
+                  <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-yellow-800 text-sm">
+                      No available sensors found. Register sensors via the Sensors dashboard first.
+                    </p>
+                  </div>
+                )}
+
+                {!showSensorSelection && (
+                  <button
+                    onClick={async () => {
+                      await loadAvailableSensors();
+                      setShowSensorSelection(true);
+                    }}
+                    className="btn-secondary"
+                    disabled={isLinkingSensor}
+                  >
+                    <Wifi className="h-4 w-4 mr-2" />
+                    Select Sensor to Monitor
+                  </button>
+                )}
+
+                {sensorLinkStatus && (
+                  <div className={`mt-3 p-3 rounded-lg flex items-center justify-between ${
+                    sensorLinkSuccess === true
+                      ? 'bg-green-50 text-green-800 border border-green-200'
+                      : sensorLinkSuccess === false
+                      ? 'bg-red-50 text-red-800 border border-red-200'
+                      : 'bg-blue-50 text-blue-800 border border-blue-200'
+                  }`}>
+                    <div className="flex items-center">
+                      {sensorLinkSuccess === true && <CheckCircle className="h-5 w-5 mr-2 text-green-600" />}
+                      {sensorLinkSuccess === false && <AlertCircle className="h-5 w-5 mr-2 text-red-600" />}
+                      <span>{sensorLinkStatus}</span>
+                    </div>
+                    {sensorLinkSuccess === true && (
+                      <button
+                        onClick={() => router.push('/professional')}
+                        className="ml-4 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-2 whitespace-nowrap"
+                      >
+                        <Package className="h-4 w-4" />
+                        View Dashboard
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {selectedSensorId && sensorLinkSuccess && (
+                  <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
+                    <CheckCircle className="h-5 w-5 text-green-600 mr-2" />
+                    <span className="text-green-800 font-medium">
+                      Sensor {selectedSensorId} is actively monitoring this batch
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Product Info */}
             <div className="card">
               <div className="flex items-center justify-between mb-4">

@@ -99,6 +99,17 @@ export interface SensorReadingsResponse {
   readings: SensorReading[];
 }
 
+export interface SensorInfo {
+  sensorId: string;
+  sensorType: SensorType;
+  label?: string;
+  vehicleOrStoreId?: string;
+  owner: string;
+  registeredAt: string;
+  isLinked: boolean;
+  currentBatch?: string;
+}
+
 export interface FreshnessResult {
   batchId?: string;
   freshnessScore: number;
@@ -294,6 +305,19 @@ export class BackendService {
   }
 
   /**
+   * Get batches filtered by stage (Supply chain roles)
+   * Transporters see In Transit batches, Retailers see At Retailer batches
+   */
+  async getBatchesByStage(stage?: string): Promise<ApiResponse<BatchDetails[]>> {
+    const url = stage ? `/batches/by-stage?stage=${encodeURIComponent(stage)}` : '/batches/by-stage';
+    const result = await this.makeRequest<{ success: boolean; data: BatchDetails[] }>(url);
+    if (result.success && result.data) {
+      return { success: true, data: (result.data as any).data || result.data };
+    }
+    return result as ApiResponse<BatchDetails[]>;
+  }
+
+  /**
    * Link a retailer/transporter sensor to a batch by scanning QR payload
    */
   async linkSensorToBatch(request: QRLinkRequest): Promise<ApiResponse<any>> {
@@ -328,6 +352,14 @@ export class BackendService {
    */
   async getSensorReadings(batchId: string): Promise<ApiResponse<SensorReadingsResponse>> {
     return this.makeRequest<SensorReadingsResponse>(`/sensors/batch/${batchId}`);
+  }
+
+  /**
+   * Get list of available sensors
+   */
+  async getAvailableSensors(sensorType?: SensorType): Promise<ApiResponse<{ sensors: SensorInfo[] }>> {
+    const query = sensorType ? `?sensorType=${sensorType}` : '';
+    return this.makeRequest<{ sensors: SensorInfo[] }>(`/sensors/available${query}`);
   }
 
   /**

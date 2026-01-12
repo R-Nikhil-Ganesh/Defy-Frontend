@@ -14,6 +14,7 @@ interface SensorReading {
   humidity: number;
   timestamp: string;
   source: string;
+  temperatureStatus?: string; // "Normal", "Too Low", or "Too High"
 }
 
 const SensorsPage: NextPage = () => {
@@ -398,10 +399,21 @@ const SensorsPage: NextPage = () => {
                           </div>
                           <div>
                             <p className="text-xs text-gray-500 mb-1">Temperature</p>
-                            <p className={`font-bold text-lg ${getTemperatureColor(reading.temperature)}`}>
-                              <Thermometer className="h-4 w-4 inline mr-1" />
-                              {reading.temperature.toFixed(1)}°C
-                            </p>
+                            <div className="flex items-center gap-2">
+                              <p className={`font-bold text-lg ${getTemperatureColor(reading.temperature)}`}>
+                                <Thermometer className="h-4 w-4 inline mr-1" />
+                                {reading.temperature.toFixed(1)}°C
+                              </p>
+                              <span className={`text-xs px-2 py-0.5 rounded-full ${
+                                reading.temperatureStatus === 'Normal' 
+                                  ? 'bg-green-100 text-green-700'
+                                  : reading.temperatureStatus === 'Too Low'
+                                  ? 'bg-blue-100 text-blue-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}>
+                                {reading.temperatureStatus || 'Normal'}
+                              </span>
+                            </div>
                           </div>
                           <div>
                             <p className="text-xs text-gray-500 mb-1">Humidity</p>
