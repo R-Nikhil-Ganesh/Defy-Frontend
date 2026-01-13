@@ -167,13 +167,6 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title = 'Da
       description: 'Transport Management'
     },
     {
-      name: 'Update Location',
-      href: '/professional',
-      icon: MapPin,
-      roles: [UserRole.TRANSPORTER],
-      description: 'Track Shipments'
-    },
-    {
       name: 'QR Scanner',
       href: '/consumer-audit',
       icon: QrCode,

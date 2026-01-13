@@ -105,7 +105,11 @@ const ConsumerAuditPage: NextPage = () => {
       return;
     }
 
+    // Automatically populate the sensor ID field
+    setSensorId(sensorId);
     setSelectedSensorId(sensorId);
+    
+    // Automatically trigger the sensor linking
     const payload = derivePayloadForBatch(batchId.trim());
     await linkSensorToBatch(batchId.trim(), payload, sensorId);
     setShowSensorSelection(false);
